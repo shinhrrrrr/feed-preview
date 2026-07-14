@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인스타그램 피드 미리보기</title>
+<style>
+  :root{
+    --cell-ratio: 388 / 518;
+    --gap: 3px;
+    --bg-light: #fafafa;
+    --panel-light: #ffffff;
+    --text-light: #111111;
+    --sub-light: #737373;
+    --border-light: #dbdbdb;
+    --bg-dark: #000000;
+    --panel-dark: #000000;
+    --text-dark: #f5f5f5;
+    --sub-dark: #a8a8a8;
+    --border-dark: #262626;
+    --accent: #ea5513;
+    --accent-dark: #c9450d;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0;
+    background:#ffffff;
+    font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,sans-serif;
+    color:#111;
+  }
+  .layout{
+    display:flex;
+    min-height:100vh;
+  }
+  /* ---------- side control panel ---------- */
+  .panel{
+    width:300px;
+    flex-shrink:0;
+    background:#ffffff;
+    color:#171717;
+    padding:28px 22px;
+    display:flex;
+    flex-direction:column;
+    gap:22px;
+    position:sticky;
+    top:0;
+    height:100vh;
+    overflow-y:auto;
+    border-right:1px solid #ececec;
+  }
+  .panel h1{
+    font-size:17px;
+    font-weight:700;
+    margin:0 0 2px 0;
+    letter-spacing:-0.2px;
+  }
+  .panel .desc{
+    font-size:12.5px;
+    color:#8a8a8a;
+    line-height:1.5;
+    margin:0;
+  }
+  .group{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    padding-top:16px;
+    border-top:1px solid #ececec;
+  }
+  .group label.title{
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:#a3a3a3;
+  }
+  .upload-zone{
+    border:1.5px dashed #d8d8d8;
+    border-radius:10px;
+    padding:18px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s, background .15s;
+    font-size:13px;
+    color:#6b6b6b;
+  }
+  .upload-zone:hover, .upload-zone.dragover{
+    border-color:var(--accent);
+    background:rgba(234,85,19,0.06);
+    color:#c9450d;
+  }
+  .upload-zone input{ display:none; }
+  .upload-zone .sub{ font-size:11px; color:#a3a3a3; margin-top:4px; }
+
+  .btn{
+    appearance:none;
+    border:1px solid #dcdcdc;
+    background:#f7f7f7;
+    color:#171717;
+    padding:9px 12px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background .15s, border-color .15s;
+    text-align:center;
+  }
+  .btn:hover{ background:#eeeeee; border-color:#c9c9c9; }
+  .btn.primary{ background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.primary:hover{ background:var(--accent-dark); border-color:var(--accent-dark); }
+  .btn.danger{ color:#d92b2b; }
+  .btn.danger:hover{ background:#fdeeee; border-color:#f3bcbc; }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+
+  .row{ display:flex; gap:8px; }
+  .row .btn{ flex:1; }
+
+  .toggle-row{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:13px; color:#333;
+  }
+  .switch{
+    position:relative; width:38px; height:22px; flex-shrink:0;
+  }
+  .switch input{ opacity:0; width:0; height:0; }
+  .slider{
+    position:absolute; inset:0; background:#dcdcdc; border-radius:20px; cursor:pointer;
+    transition:background .15s;
+  }
+  .slider:before{
+    content:""; position:absolute; width:16px; height:16px; left:3px; top:3px;
+    background:#fff; border-radius:50%; transition:transform .15s;
+  }
+  .switch input:checked + .slider{ background:var(--accent); }
+  .switch input:checked + .slider:before{ transform:translateX(16px); }
+
+  .field{
+    display:flex; flex-direction:column; gap:6px;
+  }
+  .field input[type="text"]{
+    background:#ffffff; border:1px solid #dcdcdc; color:#171717;
+    border-radius:8px; padding:8px 10px; font-size:13px;
+    font-family:inherit;
+  }
+  .field input[type="text"]:focus{ outline:none; border-color:var(--accent); }
+
+  .count-badge{
+    font-size:12px; color:#8a8a8a;
+  }
+  .count-badge b{ color:#171717; }
+
+  .hint{
+    font-size:11.5px; color:#a3a3a3; line-height:1.5;
+  }
+
+  /* ---------- preview stage ---------- */
+  .stage{
+    flex:1;
+    display:flex;
+    justify-content:center;
+    padding:48px 24px;
+    overflow-y:auto;
+    background:#ffffff;
+  }
+  .phone{
+    width:470px;
+    max-width:100%;
+    height:fit-content;
+    border-radius:22px;
+    overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,0.22);
+    transition:background .2s, color .2s;
+  }
+  .phone.light{ background:var(--panel-light); color:var(--text-light); }
+  .phone.dark{ background:var(--panel-dark); color:var(--text-dark); }
+
+  .ig-header{
+    display:flex; align-items:center; gap:12px;
+    padding:14px 16px;
+    border-bottom:1px solid var(--border-light);
+  }
+  .phone.dark .ig-header{ border-bottom:1px solid var(--border-dark); }
+  .avatar{
+    width:56px; height:56px; border-radius:50%;
+    background:linear-gradient(135deg,#ea5513,#ff9757);
+    flex-shrink:0; cursor:pointer; overflow:hidden;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:11px; font-weight:600; text-align:center;
+    border:2px solid transparent;
+  }
+  .avatar img{ width:100%; height:100%; object-fit:cover; object-position:center; }
+  .ig-header .uname{
+    font-weight:700; font-size:16px;
+    background:transparent; border:none; outline:none;
+    color:inherit; font-family:inherit;
+    width:100%;
+  }
+  .ig-header .handle-sub{ font-size:12px; color:var(--sub-light); }
+  .phone.dark .handle-sub{ color:var(--sub-dark); }
+
+  .ig-tabs{
+    display:flex; border-bottom:1px solid var(--border-light);
+  }
+  .phone.dark .ig-tabs{ border-bottom:1px solid var(--border-dark); }
+  .ig-tabs div{
+    flex:1; text-align:center; padding:11px 0; font-size:12px;
+    color:var(--sub-light); border-bottom:1.5px solid transparent;
+  }
+  .phone.dark .ig-tabs div{ color:var(--sub-dark); }
+  .ig-tabs div.active{ color:inherit; border-bottom-color:currentColor; font-weight:600; }
+
+  .grid{
+    display:grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap:var(--gap);
+    background:var(--border-light);
+  }
+  .phone.dark .grid{ background:var(--border-dark); }
+
+  .cell{
+    position:relative;
+    aspect-ratio: var(--cell-ratio);
+    overflow:hidden;
+    background:#e0e0e0;
+    cursor:grab;
+  }
+  .phone.dark .cell{ background:#151515; }
+  .cell.dragging{ opacity:.35; }
+  .cell.drop-target{ outline:2px solid var(--accent); outline-offset:-2px; }
+  .cell img{
+    width:100%; height:100%;
+    object-fit:cover;
+    object-position:center center;
+    display:block;
+    pointer-events:none;
+  }
+  .cell .newest-badge{
+    position:absolute; top:6px; left:6px;
+    background:rgba(234,85,19,0.92);
+    color:#fff; font-size:10px; font-weight:700;
+    padding:2px 6px; border-radius:5px;
+    letter-spacing:0.02em;
+  }
+  .cell .remove-btn{
+    position:absolute; top:6px; right:6px;
+    width:22px; height:22px; border-radius:50%;
+    background:rgba(0,0,0,0.55); color:#fff;
+    border:none; font-size:13px; line-height:1;
+    cursor:pointer; display:flex; align-items:center; justify-content:center;
+    opacity:0; transition:opacity .12s;
+  }
+  .cell:hover .remove-btn{ opacity:1; }
+  .cell .idx{
+    position:absolute; bottom:6px; right:6px;
+    font-size:10px; color:rgba(255,255,255,0.85);
+    background:rgba(0,0,0,0.4); padding:1px 5px; border-radius:4px;
+  }
+
+  .empty-state{
+    grid-column: 1 / -1;
+    padding:60px 20px;
+    text-align:center;
+    color:var(--sub-light);
+    font-size:13px;
+    line-height:1.6;
+  }
+  .phone.dark .empty-state{ color:var(--sub-dark); }
+
+  @media (max-width: 820px){
+    .layout{ flex-direction:column; }
+    .panel{ width:100%; height:auto; position:relative; }
+    .stage{ padding:24px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="layout">
+  <!-- ============ control panel ============ -->
+  <div class="panel">
+    <div>
+      <h1>피드 무드 미리보기</h1>
+      <p class="desc">새 사진을 넣으면 최신순으로 한 칸씩 밀려요. 사진 비율은 388:518로 정중앙 기준 자동 크롭됩니다.</p>
+    </div>
+
+    <div class="group" style="border-top:none; padding-top:0;">
+      <label class="title">운영 계정</label>
+      <div class="row">
+        <select id="accountSelect" style="flex:1; background:#ffffff; color:#171717; border:1px solid #dcdcdc; border-radius:8px; padding:8px 10px; font-size:13px; font-family:inherit;"></select>
+        <button class="btn" id="addAccountBtn" style="flex:0 0 auto;">+ 새 계정</button>
+      </div>
+      <button class="btn danger" id="deleteAccountBtn" style="font-size:12px;">이 계정 데이터 삭제</button>
+    </div>
+
+    <div class="group">
+      <label class="title">새 게시물 추가</label>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept="image/*" multiple>
+        <div>+ 사진 선택 / 드래그해서 넣기</div>
+        <div class="sub">여러 장 선택 시, 마지막 선택 사진이 가장 최근 게시물(맨 앞)이 돼요</div>
+      </div>
+      <span class="count-badge">현재 <b id="countNum">0</b>/6장 저장됨</span>
+      <p class="hint" id="loadingHint" style="display:none;">저장된 피드 불러오는 중...</p>
+    </div>
+
+    <div class="group">
+      <label class="title">표시 설정</label>
+      <div class="field">
+        <label style="font-size:12px; color:#9c9c9c;">계정명</label>
+        <input type="text" id="unameInput" value="tripicka_official">
+      </div>
+      <p class="hint">프로필 사진은 URL 대신 미리보기 화면 상단의 동그란 아바타를 클릭해서 파일로 등록해주세요. 한 번 등록하면 계정별로 저장돼서, 드롭다운에서 계정을 바꿀 때마다 자동으로 불러와요.</p>
+      <div class="toggle-row">
+        <span>다크 모드로 보기</span>
+        <label class="switch">
+          <input type="checkbox" id="darkToggle">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <p class="hint">저장공간 절약을 위해 계정당 최신 6컷만 유지돼요. 7번째 사진을 추가하면 가장 오래된 사진이 저장공간에서 자동 삭제됩니다.</p>
+    </div>
+
+    <div class="group">
+      <label class="title">정리</label>
+      <div class="row">
+        <button class="btn danger" id="clearBtn">전체 삭제</button>
+      </div>
+      <p class="hint">칸을 드래그하면 순서를 바꿀 수 있고, 이미지에 마우스를 올리면 오른쪽 위 × 버튼으로 개별 삭제할 수 있어요.</p>
+    </div>
+
+    <div class="group">
+      <label class="title">내보내기</label>
+      <button class="btn primary" id="exportBtn">피드 이미지로 저장 (PNG)</button>
+      <p class="hint">현재 화면에 보이는 칸 그대로, 각 칸 388×518px 비율로 이어붙여 한 장의 PNG로 저장합니다.</p>
+    </div>
+  </div>
+
+  <!-- ============ preview stage ============ -->
+  <div class="stage">
+    <div class="phone light" id="phone">
+      <div class="ig-header">
+        <div class="avatar" id="avatarBox">
+          <span id="avatarInitial">T</span>
+        </div>
+        <input type="file" id="avatarInput" accept="image/*" style="display:none;">
+        <div style="display:flex; flex-direction:column; gap:2px; flex:1;">
+          <input class="uname" id="unameDisplay" value="tripicka_official">
+          <span class="handle-sub" id="postCountLabel">게시물 0</span>
+        </div>
+      </div>
+      <div class="ig-tabs">
+        <div class="active">▦ 게시물</div>
+        <div>▷ 릴스</div>
+      </div>
+      <div class="grid" id="grid">
+        <div class="empty-state">아직 등록된 사진이 없어요.<br>왼쪽에서 사진을 추가해보세요.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script>
+// =========================================================
+// Firebase 프로젝트 설정 — Firebase 콘솔 > 프로젝트 설정 > 일반 탭에서
+// "SDK 설정 및 구성" 안의 값을 그대로 복사해서 아래에 붙여넣으세요.
+// Storage는 사용하지 않으므로 storageBucket 값은 없어도 무방합니다.
+// =========================================================
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyDajh0bs60WPipje9M6ANoo_kCGJZgrml4",
+  authDomain: "feed-preview-tool.firebaseapp.com",
+  projectId: "feed-preview-tool",
+  storageBucket: "feed-preview-tool.firebasestorage.app",
+  messagingSenderId: "729503068834",
+  appId: "1:729503068834:web:bff0596f75faf851f61dfb"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+(function(){
+  const CELL_W = 388, CELL_H = 518; // export 기준 실제 셀 사이즈
+  const GAP = 3;
+  const MAX_ITEMS = 6; // 계정당 최신 6컷만 유지, 초과분은 자동 삭제
+  const LAST_ACCOUNT_KEY = 'tripicka_feed_last_account'; // 기기별 UI 편의용, 브라우저 localStorage에만 저장
+  const FEED_MAX_DIM = 1000;   // 피드 사진 압축 시 최대 가로/세로(px)
+  const FEED_QUALITY = 0.75;   // 피드 사진 JPEG 압축 품질
+  const AVATAR_MAX_DIM = 320;  // 프로필 사진 압축 시 최대 가로/세로(px)
+  const AVATAR_QUALITY = 0.8;  // 프로필 사진 JPEG 압축 품질
+
+  let images = []; // [{id, src}], 최신이 index 0 (맨 앞), src = 압축된 base64 데이터
+  let avatarSrc = null;
+  let accounts = []; // [{id, name}]
+  let currentAccountId = null;
+  let db = null;
+
+  const grid = document.getElementById('grid');
+  const fileInput = document.getElementById('fileInput');
+  const uploadZone = document.getElementById('uploadZone');
+  const countNum = document.getElementById('countNum');
+  const postCountLabel = document.getElementById('postCountLabel');
+  const darkToggle = document.getElementById('darkToggle');
+  const phone = document.getElementById('phone');
+  const unameInput = document.getElementById('unameInput');
+  const unameDisplay = document.getElementById('unameDisplay');
+  const clearBtn = document.getElementById('clearBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const avatarBox = document.getElementById('avatarBox');
+  const avatarInput = document.getElementById('avatarInput');
+  const loadingHint = document.getElementById('loadingHint');
+  const accountSelect = document.getElementById('accountSelect');
+  const addAccountBtn = document.getElementById('addAccountBtn');
+  const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+
+  let dragSrcIndex = null;
+
+  function makeId(){
+    return Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
+  function setLoading(msg){
+    if(msg){ loadingHint.textContent = msg; loadingHint.style.display = 'block'; }
+    else{ loadingHint.style.display = 'none'; }
+  }
+
+  // ---- Firebase 초기화 (Firestore만 사용, Storage 불필요 → 무료 Spark 요금제로 충분) ----
+  function initFirebase(){
+    if(firebaseConfig.apiKey === 'YOUR_API_KEY'){
+      alert('firebaseConfig가 아직 비어있어요.\n\nindex.html 상단의 firebaseConfig 값을 본인의 Firebase 프로젝트 설정으로 채워주세요. (README.md 참고)');
+      setLoading(null);
+      return false;
+    }
+    try{
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      return true;
+    }catch(e){
+      console.error(e);
+      alert('Firebase 초기화에 실패했어요: ' + e.message);
+      setLoading(null);
+      return false;
+    }
+  }
+
+  // ---- 이미지 압축 (Firestore 문서 1MiB 제한을 여유있게 지키기 위해 리사이즈 + JPEG 압축) ----
+  function compressImageFile(file, maxDim, quality){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if(width > maxDim || height > maxDim){
+            if(width > height){ height = Math.round(height * maxDim / width); width = maxDim; }
+            else { width = Math.round(width * maxDim / height); height = maxDim; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = () => reject(new Error('이미지를 읽지 못했어요.'));
+        img.src = e.target.result;
+      };
+      reader.onerror = () => reject(new Error('파일을 읽지 못했어요.'));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // ---- Firestore 헬퍼 ----
+  // 구조: feedAccounts/{accountId}                 -> { name, avatarDataUrl, dark, order:[itemId,...] }
+  //       feedAccounts/{accountId}/items/{itemId}   -> { dataUrl }   (사진 1장 = 문서 1개, 1MiB 제한과 무관하게 여유있음)
+  async function fetchAccountsList(){
+    const snap = await db.collection('feedAccounts').get();
+    accounts = snap.docs.map(d => ({ id: d.id, name: d.data().name || d.id }));
+  }
+  async function createAccountDoc(id, name){
+    await db.collection('feedAccounts').doc(id).set({ name, avatarDataUrl: null, dark: false, order: [] });
+  }
+  async function persistAccountDoc(){
+    if(!currentAccountId) return;
+    try{
+      await db.collection('feedAccounts').doc(currentAccountId).set({
+        name: unameInput.value,
+        avatarDataUrl: avatarSrc,
+        dark: darkToggle.checked,
+        order: images.map(im => im.id)
+      }, { merge: true });
+    }catch(e){ console.error('저장 실패', e); alert('저장에 실패했어요: ' + e.message); }
+  }
+  async function saveItemDoc(accountId, id, dataUrl){
+    await db.collection('feedAccounts').doc(accountId).collection('items').doc(id).set({ dataUrl });
+  }
+  async function deleteItemDoc(accountId, id){
+    try{ await db.collection('feedAccounts').doc(accountId).collection('items').doc(id).delete(); }
+    catch(e){ /* 이미 없을 수 있음 */ }
+  }
+  async function deleteAllItemDocs(accountId){
+    try{
+      const snap = await db.collection('feedAccounts').doc(accountId).collection('items').get();
+      const batch = db.batch();
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }catch(e){ console.error('items 정리 실패', e); }
+  }
+
+  function setAvatarImage(src){
+    avatarSrc = src;
+    avatarBox.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = src;
+    img.onerror = () => { resetAvatarBox(); };
+    avatarBox.appendChild(img);
+  }
+  function resetAvatarBox(){
+    avatarSrc = null;
+    avatarBox.innerHTML = `<span>${(unameInput.value||'T').charAt(0).toUpperCase()}</span>`;
+  }
+
+  function renderAccountSelect(){
+    accountSelect.innerHTML = '';
+    accounts.forEach(acc => {
+      const opt = document.createElement('option');
+      opt.value = acc.id;
+      opt.textContent = acc.name;
+      if(acc.id === currentAccountId) opt.selected = true;
+      accountSelect.appendChild(opt);
+    });
+  }
+
+  // 특정 계정만 불러오기 (계정 문서 1회 + 사진 최대 6개 문서 읽기)
+  async function loadAccountData(accountId){
+    currentAccountId = accountId;
+    images = [];
+    setLoading('불러오는 중...');
+    try{
+      const doc = await db.collection('feedAccounts').doc(accountId).get();
+      let order = [];
+      if(doc.exists){
+        const data = doc.data();
+        unameInput.value = data.name || accounts.find(a=>a.id===accountId)?.name || 'account';
+        unameDisplay.value = unameInput.value;
+        if(data.avatarDataUrl){ setAvatarImage(data.avatarDataUrl); } else { resetAvatarBox(); }
+        darkToggle.checked = !!data.dark;
+        phone.classList.toggle('dark', !!data.dark);
+        phone.classList.toggle('light', !data.dark);
+        order = data.order || [];
+      } else {
+        const accName = accounts.find(a=>a.id===accountId)?.name || 'account';
+        unameInput.value = accName;
+        unameDisplay.value = accName;
+        resetAvatarBox();
+        darkToggle.checked = false;
+        phone.classList.remove('dark'); phone.classList.add('light');
+      }
+
+      const keepIds = order.slice(0, MAX_ITEMS);
+      const loaded = [];
+      for(const id of keepIds){
+        try{
+          const itemDoc = await db.collection('feedAccounts').doc(accountId).collection('items').doc(id).get();
+          if(itemDoc.exists){ loaded.push({ id, src: itemDoc.data().dataUrl }); }
+        }catch(e){ /* 개별 문서 유실은 건너뜀 */ }
+      }
+      images = loaded;
+    }catch(e){
+      console.error('불러오기 실패', e);
+      alert('데이터를 불러오지 못했어요: ' + e.message);
+    }
+    setLoading(null);
+    render();
+  }
+
+  async function initAccounts(){
+    if(!initFirebase()){ render(); return; }
+    setLoading('연결하는 중...');
+    try{
+      await fetchAccountsList();
+      if(accounts.length === 0){
+        const id = db.collection('feedAccounts').doc().id;
+        const name = unameInput.value || 'tripicka_official';
+        await createAccountDoc(id, name);
+        accounts = [{ id, name }];
+      }
+      const lastId = localStorage.getItem(LAST_ACCOUNT_KEY);
+      currentAccountId = accounts.find(a => a.id === lastId)?.id || accounts[0].id;
+      renderAccountSelect();
+      await loadAccountData(currentAccountId);
+    }catch(e){
+      console.error(e);
+      setLoading(null);
+      alert('Firebase 연결에 실패했어요. firebaseConfig 값과 Firestore 보안 규칙을 확인해주세요.\n\n' + e.message);
+    }
+  }
+
+  async function handleNewFiles(fileList){
+    if(!fileList || fileList.length === 0 || !currentAccountId) return;
+    const files = Array.from(fileList);
+    setLoading('사진 압축 중...');
+
+    // 마지막 선택 파일이 가장 최근(맨 앞)이 되도록 순서대로 압축 & unshift
+    const newItems = [];
+    for(const file of files){
+      const id = makeId();
+      try{
+        const dataUrl = await compressImageFile(file, FEED_MAX_DIM, FEED_QUALITY);
+        newItems.push({ id, src: dataUrl });
+      }catch(e){
+        console.error('압축 실패', file.name, e);
+        alert(`"${file.name}" 처리에 실패했어요: ${e.message}`);
+      }
+    }
+    newItems.forEach(item => images.unshift(item));
+    const overflow = images.length > MAX_ITEMS ? images.splice(MAX_ITEMS) : [];
+    render();
+
+    setLoading('저장하는 중...');
+    // 6컷 안에 살아남은 신규 이미지만 저장 (어차피 밀려날 이미지는 저장하지 않아 요청 절약)
+    for(const item of newItems){
+      if(images.some(im => im.id === item.id)){ await saveItemDoc(currentAccountId, item.id, item.src); }
+    }
+    for(const item of overflow){ await deleteItemDoc(currentAccountId, item.id); }
+    await persistAccountDoc();
+    setLoading(null);
+  }
+
+  function render(){
+    const displayList = images; // 항상 최대 6개
+    countNum.textContent = images.length;
+    postCountLabel.textContent = `게시물 ${images.length}`;
+
+    grid.innerHTML = '';
+    if(displayList.length === 0){
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.innerHTML = '아직 등록된 사진이 없어요.<br>왼쪽에서 사진을 추가해보세요.';
+      grid.appendChild(empty);
+      return;
+    }
+
+    displayList.forEach((item, i) => {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.draggable = true;
+      cell.dataset.index = i;
+
+      const img = document.createElement('img');
+      img.src = item.src;
+      cell.appendChild(img);
+
+      if(i === 0){
+        const badge = document.createElement('div');
+        badge.className = 'newest-badge';
+        badge.textContent = 'NEW';
+        cell.appendChild(badge);
+      }
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'remove-btn';
+      removeBtn.innerHTML = '&times;';
+      removeBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const removedId = item.id;
+        const realIndex = images.findIndex(im => im.id === removedId);
+        if(realIndex !== -1) images.splice(realIndex, 1);
+        render();
+        await deleteItemDoc(currentAccountId, removedId);
+        await persistAccountDoc();
+      });
+      cell.appendChild(removeBtn);
+
+      const idxTag = document.createElement('div');
+      idxTag.className = 'idx';
+      idxTag.textContent = i + 1;
+      cell.appendChild(idxTag);
+
+      cell.addEventListener('dragstart', () => {
+        dragSrcIndex = i;
+        cell.classList.add('dragging');
+      });
+      cell.addEventListener('dragend', () => {
+        cell.classList.remove('dragging');
+        document.querySelectorAll('.cell').forEach(c => c.classList.remove('drop-target'));
+      });
+      cell.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        cell.classList.add('drop-target');
+      });
+      cell.addEventListener('dragleave', () => {
+        cell.classList.remove('drop-target');
+      });
+      cell.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        cell.classList.remove('drop-target');
+        const targetIndex = i;
+        if(dragSrcIndex === null || dragSrcIndex === targetIndex) return;
+        const moved = images.splice(dragSrcIndex, 1)[0];
+        images.splice(targetIndex, 0, moved);
+        dragSrcIndex = null;
+        render();
+        await persistAccountDoc();
+      });
+
+      grid.appendChild(cell);
+    });
+  }
+
+  // ---- 업로드 ----
+  uploadZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    handleNewFiles(e.target.files);
+    fileInput.value = '';
+  });
+  ['dragenter','dragover'].forEach(evt => {
+    uploadZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('dragover');
+    });
+  });
+  ['dragleave','drop'].forEach(evt => {
+    uploadZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+    });
+  });
+  uploadZone.addEventListener('drop', (e) => {
+    handleNewFiles(e.dataTransfer.files);
+  });
+
+  // ---- 아바타 (파일 업로드, 압축 후 Firestore에 저장) ----
+  avatarBox.addEventListener('click', () => avatarInput.click());
+  avatarInput.addEventListener('change', async (e) => {
+    if(e.target.files.length === 0 || !currentAccountId) return;
+    const file = e.target.files[0];
+    setLoading('프로필 사진 압축 중...');
+    try{
+      const dataUrl = await compressImageFile(file, AVATAR_MAX_DIM, AVATAR_QUALITY);
+      setAvatarImage(dataUrl);
+      await persistAccountDoc();
+    }catch(e){
+      alert('프로필 사진 처리에 실패했어요: ' + e.message);
+    }
+    setLoading(null);
+  });
+
+  // ---- 계정명 동기화 ----
+  unameInput.addEventListener('input', () => { unameDisplay.value = unameInput.value; });
+  unameDisplay.addEventListener('input', () => { unameInput.value = unameDisplay.value; });
+  unameInput.addEventListener('change', async () => {
+    await persistAccountDoc();
+    const acc = accounts.find(a => a.id === currentAccountId);
+    if(acc){ acc.name = unameInput.value; renderAccountSelect(); }
+  });
+  unameDisplay.addEventListener('change', () => unameInput.dispatchEvent(new Event('change')));
+
+  // ---- 다크모드 ----
+  darkToggle.addEventListener('change', async () => {
+    phone.classList.toggle('dark', darkToggle.checked);
+    phone.classList.toggle('light', !darkToggle.checked);
+    await persistAccountDoc();
+  });
+
+  // ---- 전체 삭제 (현재 계정의 사진만) ----
+  clearBtn.addEventListener('click', async () => {
+    if(images.length === 0) return;
+    if(confirm('현재 계정에 업로드한 모든 사진을 삭제할까요? (저장된 데이터도 함께 삭제됩니다)')){
+      setLoading('삭제하는 중...');
+      const idsToDelete = images.map(im => im.id);
+      images = [];
+      render();
+      for(const id of idsToDelete){ await deleteItemDoc(currentAccountId, id); }
+      await persistAccountDoc();
+      setLoading(null);
+    }
+  });
+
+  // ---- 계정 전환 ----
+  accountSelect.addEventListener('change', async () => {
+    localStorage.setItem(LAST_ACCOUNT_KEY, accountSelect.value);
+    await loadAccountData(accountSelect.value);
+  });
+
+  // ---- 계정 추가 ----
+  addAccountBtn.addEventListener('click', async () => {
+    const name = prompt('새로 추가할 계정명(핸들)을 입력하세요');
+    if(!name || !name.trim()) return;
+    setLoading('계정 생성 중...');
+    try{
+      const id = db.collection('feedAccounts').doc().id;
+      await createAccountDoc(id, name.trim());
+      accounts.push({ id, name: name.trim() });
+      renderAccountSelect();
+      accountSelect.value = id;
+      localStorage.setItem(LAST_ACCOUNT_KEY, id);
+      await loadAccountData(id);
+    }catch(e){
+      setLoading(null);
+      alert('계정 생성에 실패했어요: ' + e.message);
+    }
+  });
+
+  // ---- 계정 삭제 ----
+  deleteAccountBtn.addEventListener('click', async () => {
+    if(accounts.length <= 1){
+      alert('최소 1개 계정은 남아있어야 해요.');
+      return;
+    }
+    const acc = accounts.find(a => a.id === currentAccountId);
+    if(!confirm(`'${acc ? acc.name : '이 계정'}'의 저장된 사진과 설정을 모두 삭제할까요?`)) return;
+
+    setLoading('삭제하는 중...');
+    try{
+      await deleteAllItemDocs(currentAccountId);
+      await db.collection('feedAccounts').doc(currentAccountId).delete();
+      accounts = accounts.filter(a => a.id !== currentAccountId);
+      renderAccountSelect();
+      const nextId = accounts[0].id;
+      localStorage.setItem(LAST_ACCOUNT_KEY, nextId);
+      await loadAccountData(nextId);
+    }catch(e){
+      setLoading(null);
+      alert('삭제에 실패했어요: ' + e.message);
+    }
+  });
+
+  // ---- 내보내기 (center-crop to 388:518) ----
+  // base64 데이터 URL이라 CORS/캔버스 오염 문제 없음
+  function loadImage(src){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('이미지를 불러오지 못했어요'));
+      img.src = src;
+    });
+  }
+
+  async function buildCompositeCanvas(){
+    const displayList = images; // 항상 최대 6개
+    const cols = 3;
+    const rows = Math.ceil(displayList.length / cols);
+    const canvas = document.createElement('canvas');
+    canvas.width = cols * CELL_W + (cols - 1) * GAP;
+    canvas.height = rows * CELL_H + (rows - 1) * GAP;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = darkToggle.checked ? '#000000' : '#dbdbdb';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const targetRatio = CELL_W / CELL_H;
+
+    for(let i = 0; i < displayList.length; i++){
+      const img = await loadImage(displayList[i].src);
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const imgRatio = iw / ih;
+
+      let sx, sy, sw, sh;
+      if(imgRatio > targetRatio){
+        sh = ih;
+        sw = ih * targetRatio;
+        sx = (iw - sw) / 2;
+        sy = 0;
+      } else {
+        sw = iw;
+        sh = iw / targetRatio;
+        sx = 0;
+        sy = (ih - sh) / 2;
+      }
+
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const dx = col * (CELL_W + GAP);
+      const dy = row * (CELL_H + GAP);
+
+      ctx.drawImage(img, sx, sy, sw, sh, dx, dy, CELL_W, CELL_H);
+    }
+    return canvas;
+  }
+
+  function canvasToBlob(canvas){
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+  }
+
+  async function exportGrid(){
+    if(images.length === 0){
+      alert('내보낼 사진이 없어요.');
+      return;
+    }
+    exportBtn.disabled = true;
+    exportBtn.textContent = '만드는 중...';
+    try{
+      const canvas = await buildCompositeCanvas();
+      const blob = await canvasToBlob(canvas);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const dateStr = new Date().toISOString().slice(0,10);
+      a.href = url;
+      a.download = `feed_preview_${dateStr}.png`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }catch(e){
+      alert('이미지 생성에 실패했어요: ' + e.message);
+    }
+    exportBtn.disabled = false;
+    exportBtn.textContent = '피드 이미지로 저장 (PNG)';
+  }
+
+  exportBtn.addEventListener('click', exportGrid);
+
+  initAccounts();
+})();
+</script>
+
+</body>
+</html>

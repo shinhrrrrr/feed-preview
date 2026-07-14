@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 팀 내부용 툴이라 우선 열어둡니다. 더 좁히고 싶다면 Firebase Authentication 도입 후 규칙을 강화하세요.
+    match /feedAccounts/{accountId} {
+      allow read, write: if true;
+
+      match /items/{itemId} {
+        allow read, write: if true;
+      }
+    }
+  }
+}
