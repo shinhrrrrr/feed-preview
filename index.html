@@ -433,7 +433,12 @@ const app = initializeApp(firebaseConfig);
 
   // ---- Firebase 초기화 (Firestore만 사용, Storage 불필요 → 무료 Spark 요금제로 충분) ----
   function initFirebase(){
-    if(firebaseConfig.apiKey === 'YOUR_API_KEY'){
+    if(firebaseConfig.apiKey === 'apiKey: "AIzaSyDajh0bs60WPipje9M6ANoo_kCGJZgrml4",
+  authDomain: "feed-preview-tool.firebaseapp.com",
+  projectId: "feed-preview-tool",
+  storageBucket: "feed-preview-tool.firebasestorage.app",
+  messagingSenderId: "729503068834",
+  appId: "1:729503068834:web:bff0596f75faf851f61dfb"'){
       alert('firebaseConfig가 아직 비어있어요.\n\nindex.html 상단의 firebaseConfig 값을 본인의 Firebase 프로젝트 설정으로 채워주세요. (README.md 참고)');
       setLoading(null);
       return false;
