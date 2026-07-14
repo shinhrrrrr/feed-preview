@@ -164,7 +164,6 @@
     background:#ffffff;
   }
   .phone{
-    /* 기존 470px에서 1.5배 증가한 705px로 설정 */
     width:705px;
     max-width:100%;
     height:fit-content;
@@ -183,7 +182,6 @@
   }
   .phone.dark .ig-header{ border-bottom:1px solid var(--border-dark); }
   
-  /* 아바타 크기도 1.5배 비례하여 조정 (56px -> 84px) */
   .avatar{
     width:84px; height:84px; border-radius:50%;
     background:linear-gradient(135deg,#ea5513,#ff9757);
@@ -366,16 +364,15 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <script>
 (function(){
-  const CELL_W = 388, CELL_H = 518; // export 기준 실제 셀 사이즈
+  const CELL_W = 388, CELL_H = 518; 
   const GAP = 3;
-  const MAX_ITEMS = 6; // 계정당 최신 6컷만 유지, 초과분은 자동 삭제
-  const LAST_ACCOUNT_KEY = 'tripicka_feed_last_account'; // 기기별 UI 편의용, 브라우저 localStorage에만 저장
-  const FEED_MAX_DIM = 1000;   // 피드 사진 압축 시 최대 가로/세로(px)
-  const FEED_QUALITY = 0.75;   // 피드 사진 JPEG 압축 품질
-  const AVATAR_MAX_DIM = 320;  // 프로필 사진 압축 시 최대 가로/세로(px)
-  const AVATAR_QUALITY = 0.8;  // 프로필 사진 JPEG 압축 품질
+  const MAX_ITEMS = 6; 
+  const LAST_ACCOUNT_KEY = 'tripicka_feed_last_account'; 
+  const FEED_MAX_DIM = 1000;   
+  const FEED_QUALITY = 0.75;   
+  const AVATAR_MAX_DIM = 320;  
+  const AVATAR_QUALITY = 0.8;  
 
-  // Firebase 프로젝트 설정
   const firebaseConfig = {
     apiKey: "AIzaSyDajh0bs60WPipje9M6ANoo_kCGJZgrml4",
     authDomain: "feed-preview-tool.firebaseapp.com",
@@ -385,9 +382,9 @@
     appId: "1:729503068834:web:bff0596f75faf851f61dfb"
   };
 
-  let images = []; // [{id, src}], 최신이 index 0 (맨 앞), src = 압축된 base64 데이터
+  let images = []; 
   let avatarSrc = null;
-  let accounts = []; // [{id, name}]
+  let accounts = []; 
   let currentAccountId = null;
   let db = null;
 
@@ -420,7 +417,6 @@
     else{ loadingHint.style.display = 'none'; }
   }
 
-  // ---- Firebase 초기화 ----
   function initFirebase(){
     if(!firebaseConfig.apiKey || firebaseConfig.apiKey.includes('apiKey:')){
       alert('firebaseConfig가 비어있거나 형식에 에러가 있습니다.');
@@ -441,7 +437,6 @@
     }
   }
 
-  // ---- 이미지 압축 ----
   function compressImageFile(file, maxDim, quality){
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -467,7 +462,6 @@
     });
   }
 
-  // ---- Firestore 헬퍼 ----
   async function fetchAccountsList(){
     const snap = await db.collection('feedAccounts').get();
     accounts = snap.docs.map(d => ({ id: d.id, name: d.data().name || d.id }));
@@ -830,7 +824,6 @@
     });
   }
 
-  // 텍스트 및 기본 형태를 그릴 때 다크 모드에 맞춰 색상 세팅
   function getThemeColors() {
     const isDark = darkToggle.checked;
     return {
@@ -844,19 +837,16 @@
   }
 
   async function buildCompositeCanvas(){
-    const displayList = images; // 최대 6개
+    const displayList = images; 
     const cols = 3;
     const rows = displayList.length > 0 ? Math.ceil(displayList.length / cols) : 1;
     
-    // 캔버스 기본 너비 (피드 3칸 너비 + 사이 간격)
     const canvasWidth = cols * CELL_W + (cols - 1) * GAP; 
     
-    // 캔버스 내 레이아웃 영역 비율 정의
-    const headerHeight = 180;  // 프로필과 계정명이 그려질 높이
-    const tabHeight = 80;      // 릴스/게시물 탭 바 높이
-    const gridOffsetY = headerHeight + tabHeight; // 피드 격자가 시작될 Y축 시작점
+    const headerHeight = 180;  
+    const tabHeight = 80;      
+    const gridOffsetY = headerHeight + tabHeight; 
     
-    // 전체 캔버스 높이 계산
     const gridHeight = rows * CELL_H + (rows - 1) * GAP;
     const canvasHeight = gridOffsetY + gridHeight;
     
@@ -872,8 +862,7 @@
     ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
     // 2. 프로필 상단 헤더 영역 그리기 (ig-header 모사)
-    // 프로필 아바타 이미지 또는 대체 원형 그리기
-    const avatarRadius = 55; // 84px의 약 1.3배 고해상도 조정
+    const avatarRadius = 55; 
     const avatarX = 80;
     const avatarY = 90;
     
@@ -893,25 +882,29 @@
     }
     ctx.restore();
 
+    // [추가된 요구사항] 프로필 원형 외곽에 1px 연회색(테마 보더색) 스트로크 추가
+    ctx.strokeStyle = colors.border;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(avatarX, avatarY, avatarRadius, 0, Math.PI * 2);
+    ctx.stroke();
+
     // 3. 계정명 및 게시물 수 텍스트 쓰기
     const textStartX = avatarX + avatarRadius + 40;
     
-    // 계정명 (unameDisplay의 텍스트)
     ctx.fillStyle = colors.text;
     ctx.font = 'bold 36px sans-serif';
     ctx.textBaseline = 'top';
     const accountName = unameInput.value || 'tripicka_official';
     ctx.fillText(accountName, textStartX, 60);
     
-    // 게시물 카운트 텍스트
     ctx.fillStyle = colors.subText;
     ctx.font = '26px sans-serif';
     ctx.fillText(`게시물 ${displayList.length}`, textStartX, 115);
 
-    // 4. 게시물 / 릴스 탭바 영역 그리기 (ig-tabs 모사)
+    // 4. 게시물 / 릴스 탭바 영역 그리기
     const tabY = headerHeight;
     
-    // 하단 구분선
     ctx.strokeStyle = colors.border;
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -924,7 +917,6 @@
     ctx.lineTo(canvasWidth, tabY + tabHeight);
     ctx.stroke();
 
-    // 활성화된 탭 하단 볼드 라인 표시 (게시물 탭 하단)
     ctx.strokeStyle = colors.tabActive;
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -932,7 +924,6 @@
     ctx.lineTo(canvasWidth / 2, tabY + tabHeight - 2);
     ctx.stroke();
 
-    // 탭 텍스트 (게시물 & 릴스)
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     
@@ -944,7 +935,6 @@
     ctx.font = '26px sans-serif';
     ctx.fillText('▷ 릴스', (canvasWidth / 4) * 3, tabY + (tabHeight / 2));
 
-    // 텍스트 정렬 및 세팅 초기화
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
 
@@ -952,13 +942,11 @@
     const targetRatio = CELL_W / CELL_H;
     
     if (displayList.length === 0) {
-      // 사진이 없을 때 안내 메시지
       ctx.fillStyle = colors.subText;
       ctx.font = '28px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('등록된 사진이 없습니다.', canvasWidth / 2, gridOffsetY + 200);
     } else {
-      // 사진이 있을 경우 배경을 격자선 색으로 지정
       ctx.fillStyle = colors.border;
       ctx.fillRect(0, gridOffsetY, canvasWidth, gridHeight);
       
@@ -992,7 +980,6 @@
     return canvas;
   }
 
-  // 아바타 기본값 그리기 (이미지 미등록 시 이니셜 대체)
   function drawDefaultAvatar(ctx, x, y, radius, colors) {
     const grad = ctx.createLinearGradient(x - radius, y - radius, x + radius, y + radius);
     grad.addColorStop(0, '#ea5513');
@@ -1002,7 +989,6 @@
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fill();
 
-    // 첫 글자 이니셜
     const firstChar = ((unameInput.value || 'T').charAt(0)).toUpperCase();
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 50px sans-serif';
