@@ -158,12 +158,14 @@
     flex:1;
     display:flex;
     justify-content:center;
+    align-items: flex-start;
     padding:48px 24px;
     overflow-y:auto;
     background:#ffffff;
   }
   .phone{
-    width:470px;
+    /* 기존 470px에서 1.5배 증가한 705px로 설정 */
+    width:705px;
     max-width:100%;
     height:fit-content;
     border-radius:22px;
@@ -175,27 +177,30 @@
   .phone.dark{ background:var(--panel-dark); color:var(--text-dark); }
 
   .ig-header{
-    display:flex; align-items:center; gap:12px;
-    padding:14px 16px;
+    display:flex; align-items:center; gap:18px;
+    padding:20px 24px;
     border-bottom:1px solid var(--border-light);
   }
   .phone.dark .ig-header{ border-bottom:1px solid var(--border-dark); }
+  
+  /* 아바타 크기도 1.5배 비례하여 조정 (56px -> 84px) */
   .avatar{
-    width:56px; height:56px; border-radius:50%;
+    width:84px; height:84px; border-radius:50%;
     background:linear-gradient(135deg,#ea5513,#ff9757);
     flex-shrink:0; cursor:pointer; overflow:hidden;
     display:flex; align-items:center; justify-content:center;
-    color:#fff; font-size:11px; font-weight:600; text-align:center;
+    color:#fff; font-size:16px; font-weight:600; text-align:center;
     border:2px solid transparent;
   }
   .avatar img{ width:100%; height:100%; object-fit:cover; object-position:center; }
+  
   .ig-header .uname{
-    font-weight:700; font-size:16px;
+    font-weight:700; font-size:22px;
     background:transparent; border:none; outline:none;
     color:inherit; font-family:inherit;
     width:100%;
   }
-  .ig-header .handle-sub{ font-size:12px; color:var(--sub-light); }
+  .ig-header .handle-sub{ font-size:15px; color:var(--sub-light); }
   .phone.dark .handle-sub{ color:var(--sub-dark); }
 
   .ig-tabs{
@@ -203,7 +208,7 @@
   }
   .phone.dark .ig-tabs{ border-bottom:1px solid var(--border-dark); }
   .ig-tabs div{
-    flex:1; text-align:center; padding:11px 0; font-size:12px;
+    flex:1; text-align:center; padding:15px 0; font-size:16px;
     color:var(--sub-light); border-bottom:1.5px solid transparent;
   }
   .phone.dark .ig-tabs div{ color:var(--sub-dark); }
@@ -235,33 +240,33 @@
     pointer-events:none;
   }
   .cell .newest-badge{
-    position:absolute; top:6px; left:6px;
+    position:absolute; top:8px; left:8px;
     background:rgba(234,85,19,0.92);
-    color:#fff; font-size:10px; font-weight:700;
-    padding:2px 6px; border-radius:5px;
+    color:#fff; font-size:12px; font-weight:700;
+    padding:3px 8px; border-radius:5px;
     letter-spacing:0.02em;
   }
   .cell .remove-btn{
-    position:absolute; top:6px; right:6px;
-    width:22px; height:22px; border-radius:50%;
+    position:absolute; top:8px; right:8px;
+    width:28px; height:28px; border-radius:50%;
     background:rgba(0,0,0,0.55); color:#fff;
-    border:none; font-size:13px; line-height:1;
+    border:none; font-size:16px; line-height:1;
     cursor:pointer; display:flex; align-items:center; justify-content:center;
     opacity:0; transition:opacity .12s;
   }
   .cell:hover .remove-btn{ opacity:1; }
   .cell .idx{
-    position:absolute; bottom:6px; right:6px;
-    font-size:10px; color:rgba(255,255,255,0.85);
-    background:rgba(0,0,0,0.4); padding:1px 5px; border-radius:4px;
+    position:absolute; bottom:8px; right:8px;
+    font-size:12px; color:rgba(255,255,255,0.85);
+    background:rgba(0,0,0,0.4); padding:2px 6px; border-radius:4px;
   }
 
   .empty-state{
     grid-column: 1 / -1;
-    padding:60px 20px;
+    padding:90px 20px;
     text-align:center;
     color:var(--sub-light);
-    font-size:13px;
+    font-size:15px;
     line-height:1.6;
   }
   .phone.dark .empty-state{ color:var(--sub-dark); }
@@ -330,7 +335,7 @@
     <div class="group">
       <label class="title">내보내기</label>
       <button class="btn primary" id="exportBtn">피드 이미지로 저장 (PNG)</button>
-      <p class="hint">현재 화면에 보이는 칸 그대로, 각 칸 388×518px 비율로 이어붙여 한 장의 PNG로 저장합니다.</p>
+      <p class="hint">현재 화면에 보이는 칸 그대로, 상단 정보(프로필, 계정명, 탭바)를 포함해 한 장의 PNG로 저장합니다.</p>
     </div>
   </div>
 
@@ -423,7 +428,6 @@
       return false;
     }
     try{
-      // 중복 초기화 방지
       if (!firebase.apps.length) {
         firebase.initializeApp(firebaseConfig);
       }
@@ -437,7 +441,7 @@
     }
   }
 
-  // ---- 이미지 압축 (Firestore 문서 1MiB 제한 준수용) ----
+  // ---- 이미지 압축 ----
   function compressImageFile(file, maxDim, quality){
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -487,7 +491,7 @@
   }
   async function deleteItemDoc(accountId, id){
     try{ await db.collection('feedAccounts').doc(accountId).collection('items').doc(id).delete(); }
-    catch(e){ /* 이미 없을 수 있음 */ }
+    catch(e){ }
   }
   async function deleteAllItemDocs(accountId){
     try{
@@ -522,7 +526,6 @@
     });
   }
 
-  // 특정 계정 불러오기
   async function loadAccountData(accountId){
     currentAccountId = accountId;
     images = [];
@@ -554,7 +557,7 @@
         try{
           const itemDoc = await db.collection('feedAccounts').doc(accountId).collection('items').doc(id).get();
           if(itemDoc.exists){ loaded.push({ id, src: itemDoc.data().dataUrl }); }
-        }catch(e){ /* 유실 데이터 패스 */ }
+        }catch(e){ }
       }
       images = loaded;
     }catch(e){
@@ -747,6 +750,7 @@
   unameDisplay.addEventListener('change', () => unameInput.dispatchEvent(new Event('change')));
 
   // ---- 다크모드 ----
+  darkToggle.checked = false;
   darkToggle.addEventListener('change', async () => {
     phone.classList.toggle('dark', darkToggle.checked);
     phone.classList.toggle('light', !darkToggle.checked);
@@ -816,7 +820,7 @@
     }
   });
 
-  // ---- 내보내기 ----
+  // ---- 내보내기 (프로필 상단 영역 통합 캔버스 생성) ----
   function loadImage(src){
     return new Promise((resolve, reject) => {
       const img = new Image();
@@ -826,45 +830,185 @@
     });
   }
 
+  // 텍스트 및 기본 형태를 그릴 때 다크 모드에 맞춰 색상 세팅
+  function getThemeColors() {
+    const isDark = darkToggle.checked;
+    return {
+      bg: isDark ? '#000000' : '#ffffff',
+      text: isDark ? '#f5f5f5' : '#111111',
+      subText: isDark ? '#a8a8a8' : '#737373',
+      border: isDark ? '#262626' : '#dbdbdb',
+      accent: '#ea5513',
+      tabActive: isDark ? '#f5f5f5' : '#111111'
+    };
+  }
+
   async function buildCompositeCanvas(){
-    const displayList = images;
+    const displayList = images; // 최대 6개
     const cols = 3;
-    const rows = Math.ceil(displayList.length / cols);
+    const rows = displayList.length > 0 ? Math.ceil(displayList.length / cols) : 1;
+    
+    // 캔버스 기본 너비 (피드 3칸 너비 + 사이 간격)
+    const canvasWidth = cols * CELL_W + (cols - 1) * GAP; 
+    
+    // 캔버스 내 레이아웃 영역 비율 정의
+    const headerHeight = 180;  // 프로필과 계정명이 그려질 높이
+    const tabHeight = 80;      // 릴스/게시물 탭 바 높이
+    const gridOffsetY = headerHeight + tabHeight; // 피드 격자가 시작될 Y축 시작점
+    
+    // 전체 캔버스 높이 계산
+    const gridHeight = rows * CELL_H + (rows - 1) * GAP;
+    const canvasHeight = gridOffsetY + gridHeight;
+    
     const canvas = document.createElement('canvas');
-    canvas.width = cols * CELL_W + (cols - 1) * GAP;
-    canvas.height = rows * CELL_H + (rows - 1) * GAP;
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = darkToggle.checked ? '#000000' : '#dbdbdb';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    const colors = getThemeColors();
+    
+    // 1. 전체 배경 칠하기
+    ctx.fillStyle = colors.bg;
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
-    const targetRatio = CELL_W / CELL_H;
-
-    for(let i = 0; i < displayList.length; i++){
-      const img = await loadImage(displayList[i].src);
-      const iw = img.naturalWidth, ih = img.naturalHeight;
-      const imgRatio = iw / ih;
-
-      let sx, sy, sw, sh;
-      if(imgRatio > targetRatio){
-        sh = ih;
-        sw = ih * targetRatio;
-        sx = (iw - sw) / 2;
-        sy = 0;
-      } else {
-        sw = iw;
-        sh = iw / targetRatio;
-        sx = 0;
-        sy = (ih - sh) / 2;
+    // 2. 프로필 상단 헤더 영역 그리기 (ig-header 모사)
+    // 프로필 아바타 이미지 또는 대체 원형 그리기
+    const avatarRadius = 55; // 84px의 약 1.3배 고해상도 조정
+    const avatarX = 80;
+    const avatarY = 90;
+    
+    ctx.save();
+    if(avatarSrc){
+      try {
+        const avImg = await loadImage(avatarSrc);
+        ctx.beginPath();
+        ctx.arc(avatarX, avatarY, avatarRadius, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(avImg, avatarX - avatarRadius, avatarY - avatarRadius, avatarRadius * 2, avatarRadius * 2);
+      } catch (e) {
+        drawDefaultAvatar(ctx, avatarX, avatarY, avatarRadius, colors);
       }
-
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const dx = col * (CELL_W + GAP);
-      const dy = row * (CELL_H + GAP);
-
-      ctx.drawImage(img, sx, sy, sw, sh, dx, dy, CELL_W, CELL_H);
+    } else {
+      drawDefaultAvatar(ctx, avatarX, avatarY, avatarRadius, colors);
     }
+    ctx.restore();
+
+    // 3. 계정명 및 게시물 수 텍스트 쓰기
+    const textStartX = avatarX + avatarRadius + 40;
+    
+    // 계정명 (unameDisplay의 텍스트)
+    ctx.fillStyle = colors.text;
+    ctx.font = 'bold 36px sans-serif';
+    ctx.textBaseline = 'top';
+    const accountName = unameInput.value || 'tripicka_official';
+    ctx.fillText(accountName, textStartX, 60);
+    
+    // 게시물 카운트 텍스트
+    ctx.fillStyle = colors.subText;
+    ctx.font = '26px sans-serif';
+    ctx.fillText(`게시물 ${displayList.length}`, textStartX, 115);
+
+    // 4. 게시물 / 릴스 탭바 영역 그리기 (ig-tabs 모사)
+    const tabY = headerHeight;
+    
+    // 하단 구분선
+    ctx.strokeStyle = colors.border;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, tabY);
+    ctx.lineTo(canvasWidth, tabY);
+    ctx.stroke();
+    
+    ctx.beginPath();
+    ctx.moveTo(0, tabY + tabHeight);
+    ctx.lineTo(canvasWidth, tabY + tabHeight);
+    ctx.stroke();
+
+    // 활성화된 탭 하단 볼드 라인 표시 (게시물 탭 하단)
+    ctx.strokeStyle = colors.tabActive;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, tabY + tabHeight - 2);
+    ctx.lineTo(canvasWidth / 2, tabY + tabHeight - 2);
+    ctx.stroke();
+
+    // 탭 텍스트 (게시물 & 릴스)
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    ctx.fillStyle = colors.text;
+    ctx.font = 'bold 26px sans-serif';
+    ctx.fillText('▦ 게시물', canvasWidth / 4, tabY + (tabHeight / 2));
+    
+    ctx.fillStyle = colors.subText;
+    ctx.font = '26px sans-serif';
+    ctx.fillText('▷ 릴스', (canvasWidth / 4) * 3, tabY + (tabHeight / 2));
+
+    // 텍스트 정렬 및 세팅 초기화
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+
+    // 5. 피드 격자 그리기
+    const targetRatio = CELL_W / CELL_H;
+    
+    if (displayList.length === 0) {
+      // 사진이 없을 때 안내 메시지
+      ctx.fillStyle = colors.subText;
+      ctx.font = '28px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('등록된 사진이 없습니다.', canvasWidth / 2, gridOffsetY + 200);
+    } else {
+      // 사진이 있을 경우 배경을 격자선 색으로 지정
+      ctx.fillStyle = colors.border;
+      ctx.fillRect(0, gridOffsetY, canvasWidth, gridHeight);
+      
+      for(let i = 0; i < displayList.length; i++){
+        const img = await loadImage(displayList[i].src);
+        const iw = img.naturalWidth, ih = img.naturalHeight;
+        const imgRatio = iw / ih;
+
+        let sx, sy, sw, sh;
+        if(imgRatio > targetRatio){
+          sh = ih;
+          sw = ih * targetRatio;
+          sx = (iw - sw) / 2;
+          sy = 0;
+        } else {
+          sw = iw;
+          sh = iw / targetRatio;
+          sx = 0;
+          sy = (ih - sh) / 2;
+        }
+
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const dx = col * (CELL_W + GAP);
+        const dy = gridOffsetY + row * (CELL_H + GAP);
+
+        ctx.drawImage(img, sx, sy, sw, sh, dx, dy, CELL_W, CELL_H);
+      }
+    }
+    
     return canvas;
+  }
+
+  // 아바타 기본값 그리기 (이미지 미등록 시 이니셜 대체)
+  function drawDefaultAvatar(ctx, x, y, radius, colors) {
+    const grad = ctx.createLinearGradient(x - radius, y - radius, x + radius, y + radius);
+    grad.addColorStop(0, '#ea5513');
+    grad.addColorStop(1, '#ff9757');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 첫 글자 이니셜
+    const firstChar = ((unameInput.value || 'T').charAt(0)).toUpperCase();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 50px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(firstChar, x, y);
   }
 
   function canvasToBlob(canvas){
@@ -872,10 +1016,6 @@
   }
 
   async function exportGrid(){
-    if(images.length === 0){
-      alert('내보낼 사진이 없어요.');
-      return;
-    }
     exportBtn.disabled = true;
     exportBtn.textContent = '만드는 중...';
     try{
@@ -889,6 +1029,7 @@
       a.click();
       URL.revokeObjectURL(url);
     }catch(e){
+      console.error(e);
       alert('이미지 생성에 실패했어요: ' + e.message);
     }
     exportBtn.disabled = false;
