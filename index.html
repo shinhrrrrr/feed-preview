@@ -134,6 +134,34 @@
   .switch input:checked + .slider{ background:var(--accent); }
   .switch input:checked + .slider:before{ transform:translateX(16px); }
 
+  /* Segmented Control (6피드/9피드 토글) */
+  .segmented-control{
+    display:flex;
+    background:#f3f3f3;
+    padding:3px;
+    border-radius:8px;
+    border:1px solid #e2e2e2;
+  }
+  .segmented-control input{
+    display:none;
+  }
+  .segmented-control label{
+    flex:1;
+    text-align:center;
+    padding:6px 0;
+    font-size:12.5px;
+    font-weight:600;
+    color:#737373;
+    border-radius:6px;
+    cursor:pointer;
+    transition:background .15s, color .15s;
+  }
+  .segmented-control input:checked + label{
+    background:#ffffff;
+    color:#111111;
+    box-shadow:0 1px 3px rgba(0,0,0,0.08);
+  }
+
   .field{
     display:flex; flex-direction:column; gap:6px;
   }
@@ -299,7 +327,7 @@
         <div>+ 사진 선택 / 드래그해서 넣기</div>
         <div class="sub">여러 장 선택 시, 마지막 선택 사진이 가장 최근 게시물(맨 앞)이 돼요</div>
       </div>
-      <span class="count-badge">현재 <b id="countNum">0</b>/6장 저장됨</span>
+      <span class="count-badge">현재 <b id="countNum">0</b>/<span id="maxNumLabel">9</span>장 저장됨</span>
       <p class="hint" id="loadingHint" style="display:none;">저장된 피드 불러오는 중...</p>
     </div>
 
@@ -309,15 +337,26 @@
         <label style="font-size:12px; color:#9c9c9c;">계정명</label>
         <input type="text" id="unameInput" value="tripicka_official">
       </div>
-      <p class="hint">프로필 사진은 URL 대신 미리보기 화면 상단의 동그란 아바타를 클릭해서 파일로 등록해주세요. 한 번 등록하면 계정별로 저장돼서, 드롭다운에서 계정을 바꿀 때마다 자동으로 불러와요.</p>
-      <div class="toggle-row">
+      <p class="hint">프로필 사진은 URL 대신 미리보기 화면 상단의 동그란 아바타를 클릭해서 파일로 등록해주세요.</p>
+      
+      <div class="toggle-row" style="margin-top: 5px; flex-direction:column; align-items:stretch; gap:6px;">
+        <span style="font-size: 12px; color: #9c9c9c;">표시할 피드 수</span>
+        <div class="segmented-control">
+          <input type="radio" id="feedSize6" name="feedSize" value="6">
+          <label for="feedSize6">6피드 (2줄)</label>
+          <input type="radio" id="feedSize9" name="feedSize" value="9" checked>
+          <label for="feedSize9">9피드 (3줄)</label>
+        </div>
+      </div>
+
+      <div class="toggle-row" style="margin-top: 10px;">
         <span>다크 모드로 보기</span>
         <label class="switch">
           <input type="checkbox" id="darkToggle">
           <span class="slider"></span>
         </label>
       </div>
-      <p class="hint">저장공간 절약을 위해 계정당 최신 6컷만 유지돼요. 7번째 사진을 추가하면 가장 오래된 사진이 저장공간에서 자동 삭제됩니다.</p>
+      <p class="hint" id="storageHint">선택하신 레이아웃에 맞춰 저장 한도가 자동으로 조정됩니다.</p>
     </div>
 
     <div class="group">
@@ -363,7 +402,8 @@
 (function(){
   const CELL_W = 388, CELL_H = 518; 
   const GAP = 3;
-  const MAX_ITEMS = 6; 
+  const STORAGE_MAX = 9; // 최대 저장할 수 있는 절대 한계는 9로 고정 (사용자가 6/9 스위칭 시 유동적으로 대응)
+  let maxItems = 9;       // 현재 적용 중인 보기 한도 (6 or 9)
   const LAST_ACCOUNT_KEY = 'tripicka_feed_last_account'; 
   const FEED_MAX_DIM = 1000;   
   const FEED_QUALITY = 0.75;   
@@ -389,6 +429,7 @@
   const fileInput = document.getElementById('fileInput');
   const uploadZone = document.getElementById('uploadZone');
   const countNum = document.getElementById('countNum');
+  const maxNumLabel = document.getElementById('maxNumLabel');
   const darkToggle = document.getElementById('darkToggle');
   const phone = document.getElementById('phone');
   const unameInput = document.getElementById('unameInput');
@@ -401,6 +442,10 @@
   const accountSelect = document.getElementById('accountSelect');
   const addAccountBtn = document.getElementById('addAccountBtn');
   const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+  const storageHint = document.getElementById('storageHint');
+
+  // 6피드/9피드 라디오 버튼 목록
+  const feedSizeRadios = document.getElementsByName('feedSize');
 
   let dragSrcIndex = null;
 
@@ -463,7 +508,7 @@
     accounts = snap.docs.map(d => ({ id: d.id, name: d.data().name || d.id }));
   }
   async function createAccountDoc(id, name){
-    await db.collection('feedAccounts').doc(id).set({ name, avatarDataUrl: null, dark: false, order: [] });
+    await db.collection('feedAccounts').doc(id).set({ name, avatarDataUrl: null, dark: false, order: [], feedSize: 9 });
   }
   async function persistAccountDoc(){
     if(!currentAccountId) return;
@@ -472,6 +517,7 @@
         name: unameInput.value,
         avatarDataUrl: avatarSrc,
         dark: darkToggle.checked,
+        feedSize: maxItems,
         order: images.map(im => im.id)
       }, { merge: true });
     }catch(e){ console.error('저장 실패', e); alert('저장에 실패했어요: ' + e.message); }
@@ -531,6 +577,13 @@
         darkToggle.checked = !!data.dark;
         phone.classList.toggle('dark', !!data.dark);
         phone.classList.toggle('light', !data.dark);
+        
+        // 6피드/9피드 저장된 설정 불러오기
+        const savedSize = data.feedSize === 6 ? 6 : 9;
+        maxItems = savedSize;
+        document.getElementById(`feedSize${savedSize}`).checked = true;
+        updateStorageHint();
+
         order = data.order || [];
       } else {
         const accName = accounts.find(a=>a.id===accountId)?.name || 'account';
@@ -539,9 +592,14 @@
         resetAvatarBox();
         darkToggle.checked = false;
         phone.classList.remove('dark'); phone.classList.add('light');
+        
+        maxItems = 9;
+        document.getElementById('feedSize9').checked = true;
+        updateStorageHint();
       }
 
-      const keepIds = order.slice(0, MAX_ITEMS);
+      // 최대 STORAGE_MAX(9)개 만큼 안전하게 불러와 저장해둡니다.
+      const keepIds = order.slice(0, STORAGE_MAX);
       const loaded = [];
       for(const id of keepIds){
         try{
@@ -580,6 +638,11 @@
     }
   }
 
+  function updateStorageHint() {
+    maxNumLabel.textContent = maxItems;
+    storageHint.textContent = `현재 설정된 한도(${maxItems}피드)를 초과해 업로드하면 가장 오래된 사진이 자동으로 밀려서 삭제됩니다.`;
+  }
+
   async function handleNewFiles(fileList){
     if(!fileList || fileList.length === 0 || !currentAccountId) return;
     const files = Array.from(fileList);
@@ -597,7 +660,9 @@
       }
     }
     newItems.forEach(item => images.unshift(item));
-    const overflow = images.length > MAX_ITEMS ? images.splice(MAX_ITEMS) : [];
+    
+    // 사용자가 현재 설정한 레이아웃 개수(maxItems)를 한도로 잡고 초과분은 정리합니다.
+    const overflow = images.length > maxItems ? images.splice(maxItems) : [];
     render();
 
     setLoading('저장하는 중...');
@@ -610,8 +675,9 @@
   }
 
   function render(){
-    const displayList = images;
-    countNum.textContent = images.length;
+    // 화면에는 사용자가 선택한 maxItems 수만큼만 잘라서 그립니다.
+    const displayList = images.slice(0, maxItems);
+    countNum.textContent = displayList.length;
 
     grid.innerHTML = '';
     if(displayList.length === 0){
@@ -678,6 +744,8 @@
         cell.classList.remove('drop-target');
         const targetIndex = i;
         if(dragSrcIndex === null || dragSrcIndex === targetIndex) return;
+        
+        // 보이는 기준에 맞춰 내부 순서 재배열
         const moved = images.splice(dragSrcIndex, 1)[0];
         images.splice(targetIndex, 0, moved);
         dragSrcIndex = null;
@@ -688,6 +756,23 @@
       grid.appendChild(cell);
     });
   }
+
+  // ---- 6피드/9피드 스위칭 라디오 이벤트 핸들러 ----
+  feedSizeRadios.forEach(radio => {
+    radio.addEventListener('change', async (e) => {
+      const newSize = parseInt(e.target.value);
+      maxItems = newSize;
+      
+      // 혹시 9피드에서 6피드로 전환할 때 기존에 등록된 7~9번째 파일이 지워지길 바란다면 아래처럼 처리
+      // 만약 9피드로 돌아왔을 때 보관하고 싶으면 이 줄을 주석처리하면 됩니다.
+      const overflow = images.length > maxItems ? images.splice(maxItems) : [];
+      for(const item of overflow) { await deleteItemDoc(currentAccountId, item.id); }
+
+      updateStorageHint();
+      render();
+      await persistAccountDoc();
+    });
+  });
 
   // ---- 업로드 ----
   uploadZone.addEventListener('click', () => fileInput.click());
@@ -832,7 +917,8 @@
   }
 
   async function buildCompositeCanvas(){
-    const displayList = images; 
+    // 현재 레이아웃 사이즈(maxItems)에 맞추어 출력 리스트 생성
+    const displayList = images.slice(0, maxItems); 
     const cols = 3;
     const rows = displayList.length > 0 ? Math.ceil(displayList.length / cols) : 1;
     
@@ -884,14 +970,14 @@
     ctx.arc(avatarX, avatarY, avatarRadius, 0, Math.PI * 2);
     ctx.stroke();
 
-    // 3. 계정명 텍스트 쓰기 (가운데 정렬 느낌으로 세로 중심값 조정)
+    // 3. 계정명 텍스트 쓰기
     const textStartX = avatarX + avatarRadius + 40;
     
     ctx.fillStyle = colors.text;
     ctx.font = 'bold 36px sans-serif';
-    ctx.textBaseline = 'middle'; // 게시물 수 텍스트가 사라졌으므로 수직 가운데 정렬로 변경
+    ctx.textBaseline = 'middle';
     const accountName = unameInput.value || 'tripicka_official';
-    ctx.fillText(accountName, textStartX, avatarY); // 아바타 중심 높이(avatarY)에 맞춰 그림
+    ctx.fillText(accountName, textStartX, avatarY);
     
     // 4. 게시물 / 릴스 탭바 영역 그리기
     const tabY = headerHeight;
